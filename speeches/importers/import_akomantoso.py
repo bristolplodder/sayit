@@ -24,6 +24,13 @@ class ImportAkomaNtoso (ImporterBase):
     speakers = {}
     use_by_refs = True
 
+    merge_empty_sections = True
+
+    def __init__(self, **kwargs):
+        if 'merge_empty_sections' in kwargs:
+            self.merge_empty_sections = kwargs.pop('merge_empty_sections')
+        return super(ImportAkomaNtoso, self).__init__(**kwargs)
+
     def import_document(self, document_path):
         tree = objectify.parse(document_path)
         self.xml = tree.getroot()
@@ -97,11 +104,14 @@ class ImportAkomaNtoso (ImporterBase):
         return False
 
     def visit(self, node, section):
+        cached_title = ''
+
         for child in node.iterchildren():
             tagname = self.get_tag(child)
             if tagname in ('num', 'heading', 'subheading'):
                 # this will already have been extracted
                 continue
+
             if tagname in ('debateSection', 'administrationOfOath', 'rollCall',
                     'prayers', 'oralStatements', 'writtenStatements',
                     'personalStatements', 'ministerialStatements',
@@ -110,10 +120,24 @@ class ImportAkomaNtoso (ImporterBase):
                     'questions', 'address', 'proceduralMotions',
                     'pointOfOrder', 'adjournment'):
                 title = self.construct_title(child)
-                childSection = self.make(Section, parent=section, title=title)
-                self.visit(child, childSection)
+
+                # Note that len(child) returns the number of siblings, not the
+                # number of children (because we're using objectify).
+                element_count = child.countchildren()
+
+                if element_count > 1 or not self.merge_empty_sections:
+                    if cached_title:
+                        title = cached_title + title
+                        cached_title = ''
+                    childSection = self.make(Section, parent=section, title=title)
+                    self.visit(child, childSection)
+                else:
+                    cached_title += title + ' - '
+                    self.visit(child, section)
+
             elif tagname in ('speech', 'question', 'answer'):
                 title = self.construct_title(child)
+
                 text = self.get_text(child)
                 display_name = self.name_display(child['from'].text)
                 start_date, start_time = self.construct_datetime(child.get('startTime'))
