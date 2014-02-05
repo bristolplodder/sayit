@@ -24,7 +24,7 @@ class ImportAkomaNtosoTests(InstanceTestCase):
     @classmethod
     def setUpClass(cls):
         cls._in_fixtures = os.path.join(os.path.abspath(speeches.__path__[0]), 'fixtures', 'test_inputs')
-        cls._exepected_fixtures = os.path.join(os.path.abspath(speeches.__path__[0]), 'fixtures', 'expected_outputs')
+        cls._expected_fixtures = os.path.join(os.path.abspath(speeches.__path__[0]), 'fixtures', 'expected_outputs')
 
         call_command('clear_index', interactive=False, verbosity=0)
 
@@ -63,15 +63,22 @@ class ImportAkomaNtosoTests(InstanceTestCase):
                 % (len(resolved), THRESHOLD, len(speakers)))
 
 
-        with open(os.path.join(self._exepected_fixtures, 'NA200912_section_titles.json')) as fh:
+        filename = 'NA200912_section_titles.json'
+        expected_filename = os.path.join(self._expected_fixtures, filename)
+        out_filename = os.path.join('.', filename)
+        
+        with open(expected_filename) as fh:
             expected_titles = json.load(fh)
 
         section_titles = [s.title for s in Section.objects.all()]
 
-        # print json.dumps(section_titles, indent=4, sort_keys=True)
+        if not expected_titles == section_titles:
+            out = open(out_filename, 'w')
+            json.dump(section_titles, out, indent=4)
 
         self.assertEqual(
-            expected_titles, section_titles
+            expected_titles, section_titles,
+            'NB: check JSON output: e.g. vimdiff %s %s' % (out_filename, expected_filename)
         )
 
     def test_title_casing(self):
