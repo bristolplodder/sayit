@@ -126,13 +126,16 @@ class ImportAkomaNtoso (ImporterBase):
                 element_count = child.countchildren()
 
                 if element_count > 1 or not self.merge_empty_sections:
+
                     if cached_title:
                         title = cached_title + title
                         cached_title = ''
+
                     childSection = self.make(Section, parent=section, title=title)
                     self.visit(child, childSection)
                 else:
-                    cached_title += title + ' - '
+                    if title:
+                        cached_title += title + ' - '
                     self.visit(child, section)
 
             elif tagname in ('speech', 'question', 'answer'):
